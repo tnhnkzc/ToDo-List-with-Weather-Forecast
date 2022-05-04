@@ -1,0 +1,38 @@
+<%- include('header'); -%>
+<div class="box-1">
+  <a class="listButton" href="/"><p class="todo">To Do List</p></a>
+  <a class="workListButton" href="/workList"
+    ><p class="worktodo">Work To Do List</p></a
+  >
+  <a class="weatherButton" href="/weather"><p class="weatherp">Weather</p></a>
+</div>
+<div class="box" id="heading">
+  <h1><%= listTitle %></h1>
+</div>
+<div class="box" id="container">
+  <% for(let i = 0; i < newListItems.length; i++) { %>
+  <div class="item-1">
+    <form class="eraseForm" name="eraseItem" action="/delete" method="post">
+      <input
+        class="ourItem"
+        type="text"
+        name="itemItself"
+        value="<%= newListItems[i] %>"
+      />
+      <button type="submit">-</button>
+    </form>
+  </div>
+  <%}%>
+  <form class="item" action="<%= route %>" method="post">
+    <input
+      class="newItemInput"
+      type="text"
+      name="newItem"
+      placeholder="New Item"
+      autocomplete="off"
+    />
+    <button type="submit">+</button>
+  </form>
+</div>
+
+<%- include('footer'); -%>

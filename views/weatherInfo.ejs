@@ -1,0 +1,18 @@
+<%- include('header'); -%>
+<div class="box-1">
+  <a class="listButton" href="/"><p>To Do List</p></a>
+  <a class="workListButton" href="/work"><p>Work To Do List</p></a>
+  <a class="weatherButton" href="/weather"><p>Weather</p></a>
+</div>
+<div class="weatherBox">
+  <div>
+    <h1>The weather in <%= query %> is <%= temp %> degrees Celcius.</h1>
+  </div>
+  <div>
+    <p>The weather in <%= query %> is <%= weatherDescription %>.</p>
+  </div>
+  <div>
+    <img src="<%= imageURL %>" />
+  </div>
+</div>
+<%- include('footer'); -%>
