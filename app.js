@@ -5,15 +5,43 @@ const { all } = require("express/lib/application");
 const https = require("https");
 const { query } = require("express");
 const app = express();
+app.use(express.static("public"));
 const whitelist = ["http://127.0.0.1"];
-
-let items = [];
-let workItems = [];
+const mongoose = require("mongoose");
+const _ = require("lodash");
 
 app.set("view engine", "ejs");
-
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static("public"));
+
+//Database Connection
+mongoose.connect(
+  "mongodb+srv://tnhnkzc:Mnta1173.+@cluster0.rpgyf.mongodb.net/todolistDB?retryWrites=true&w=majority"
+);
+
+const itemsSchema = {
+  name: String,
+};
+
+const Item = mongoose.model("Item", itemsSchema);
+
+const item1 = new Item({
+  name: "Welcome to your to do list!",
+});
+const item2 = new Item({
+  name: "Press < + > to add an item.",
+});
+const item3 = new Item({
+  name: "Press the checkbox to delete an item.",
+});
+const defaultItems = [item1, item2, item3];
+
+const listSchema = {
+  name: String,
+  items: [itemsSchema],
+};
+const List = mongoose.model("List", listSchema);
+
 // ToDo List
 app.get("/", function (req, res) {
   let today = new Date();
@@ -24,68 +52,115 @@ app.get("/", function (req, res) {
     day: "numeric",
   };
   let day = today.toLocaleDateString("en-gb", options);
-  res.render("list", { listTitle: day, newListItems: items, route: "/" });
+  //Fetch items from DB
+  Item.find({}, function (err, foundItems) {
+    if (foundItems.length === 0) {
+      Item.insertMany(defaultItems, function (err) {
+        if (err) {
+          console.log(err);
+        } else {
+          console.log("Succesfully saved the default items to the DB.");
+        }
+      });
+      res.redirect("/");
+    }
+    if (err) {
+      console.log(err);
+    } else {
+      res.render("list", {
+        listTitle: "Today",
+        newListItems: foundItems,
+        route: "/",
+      });
+    }
+  });
 });
 
 app.post("/", function (req, res) {
-  let item = req.body.newItem;
-  items.push(item);
-  res.redirect("/");
+  const itemName = req.body.newItem;
+  const listName = req.body.list;
+  const item = new Item({
+    name: itemName,
+  });
+  if (listName === "Today") {
+    item.save();
+    res.redirect("/");
+  } else {
+    List.findOne({ name: listName }, function (err, foundList) {
+      let newItems = foundList.items;
+      newItems.push(item);
+      foundList.save();
+      res.redirect("/lists/" + listName);
+    });
+  }
 });
 // Delete To Do List item
 app.get("/delete", function (req, res) {
   res.render("list", {
     listTitle: day,
-    newListItems: items,
+    newListItems: foundItems,
     route: "/",
   });
 });
 app.post("/delete", function (req, res) {
-  let itemItself = req.body.itemItself;
-  let deleteItem = items.indexOf(itemItself); //index of the item
-  items.splice(deleteItem, 1);
+  const listItem = req.body.deleteItem;
+  const listName = req.body.listName;
 
-  res.redirect("/");
+  if (listName === "Today") {
+    Item.findByIdAndRemove(listItem, function (err) {
+      if (err) {
+        console.log(err);
+      } else {
+        res.redirect("/");
+      }
+    });
+  } else {
+    List.findOneAndUpdate(
+      { name: listName },
+      { $pull: { items: { _id: listItem } } },
+      function (err, foundList) {
+        if (!err) {
+          res.redirect("/lists/" + listName);
+        }
+      }
+    );
+  }
 });
-// Work ToDo List
-app.get("/workList", function (req, res) {
-  res.render("workList", {
-    listTitle: "Work List",
-    newListItems: workItems,
-    route: "/workList",
-  });
-});
-app.post("/workList", function (req, res) {
-  let item = req.body.newItem;
-  workItems.push(item);
-  console.log(workItems);
-  res.redirect("/workList");
-});
-// Delete Work To Do List item
-app.get("/deleteWork", function (req, res) {
-  res.render("workList", {
-    listTitle: "Work List",
-    newListItems: workItems,
-    route: "/workList",
-  });
-});
-app.post("/deleteWork", function (req, res) {
-  let itemItself = req.body.itemItself;
-  let deleteItem = workItems.indexOf(itemItself); //index of the item
-
-  workItems.splice(deleteItem, 1);
-
-  res.redirect("/workList");
+// Custom ToDo List
+app.get("/lists/:customListName", function (req, res) {
+  const customListName = _.capitalize(req.params.customListName);
+  const existingListName = List.findOne(
+    { name: customListName },
+    function (err, foundList) {
+      if (!err) {
+        if (!foundList) {
+          //Create a new list.
+          const list = new List({
+            name: customListName,
+            items: defaultItems,
+          });
+          list.save();
+          res.redirect("/lists/" + customListName);
+        } else {
+          //Show an existing list.
+          res.render("list", {
+            listTitle: foundList.name,
+            newListItems: foundList.items,
+          });
+        }
+      }
+    }
+  );
 });
 
 // Weather Inquiry Page
 app.get("/weather", function (req, res) {
   res.render("weather");
 });
-// Weather Render Page
-app.get("/weatherInfo", function (req, res) {
-  res.render("weatherInfo");
-});
+// // Weather Render Page
+// app.get("/weatherInfo", function (req, res) {
+//   res.render("weatherInfo");
+// });
 // Weather Inquiry Page Post Request
 app.post("/weather", function (req, res) {
   const query = req.body.cityName;
